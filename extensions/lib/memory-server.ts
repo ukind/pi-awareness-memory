@@ -1,3 +1,4 @@
+import http from "node:http";
 import { VectorStore } from "./vector-store";
 import { UserProfile } from "./user-profile";
 import { renderHtml } from "./memory-html";
@@ -8,16 +9,19 @@ interface ServerConfig {
 	profile: UserProfile;
 }
 
-function jsonResponse(data: unknown): Response {
-	return new Response(JSON.stringify(data), {
-		headers: { "Content-Type": "application/json" },
-	});
+function jsonResponse(
+	res: http.ServerResponse,
+	data: unknown,
+): void {
+	const body = JSON.stringify(data);
+	res.writeHead(200, { "Content-Type": "application/json" });
+	res.end(body);
 }
 
 export class MemoryServer {
 	private store: VectorStore;
 	private profile: UserProfile;
-	private server: ReturnType<typeof Bun.serve> | null = null;
+	private server: http.Server | null = null;
 	private port: number;
 
 	constructor(config: ServerConfig) {
@@ -28,37 +32,47 @@ export class MemoryServer {
 
 	async start(): Promise<string> {
 		const baseUrl = `http://localhost:${this.port}`;
-		this.server = Bun.serve({
-			port: this.port,
-			fetch: (req) => this.handleRequest(req),
+		this.server = http.createServer((req, res) =>
+			this.handleRequest(req, res),
+		);
+		return new Promise((resolve, reject) => {
+			this.server!.listen(this.port, () => resolve(baseUrl));
+			this.server!.on("error", reject);
 		});
-		return baseUrl;
 	}
 
 	stop(): void {
-		this.server?.stop();
+		this.server?.close();
 	}
 
-	private async handleRequest(req: Request): Promise<Response> {
-		const url = new URL(req.url);
-		if (url.pathname === "/") return htmlResponse();
-		if (url.pathname === "/api/memories") return this.handleMemories(url);
-		if (url.pathname === "/api/profile")
-			return jsonResponse(this.profile.build());
-		return new Response("Not found", { status: 404 });
+	private async handleRequest(
+		req: http.IncomingMessage,
+		res: http.ServerResponse,
+	): Promise<void> {
+		const url = new URL(req.url!, `http://localhost:${this.port}`);
+		if (url.pathname === "/") {
+			res.writeHead(200, { "Content-Type": "text/html" });
+			res.end(renderHtml());
+			return;
+		}
+		if (url.pathname === "/api/memories") {
+			return this.handleMemories(url, res);
+		}
+		if (url.pathname === "/api/profile") {
+			return jsonResponse(res, this.profile.build());
+		}
+		res.writeHead(404);
+		res.end("Not found");
 	}
 
-	private async handleMemories(url: URL): Promise<Response> {
+	private async handleMemories(
+		url: URL,
+		res: http.ServerResponse,
+	): Promise<void> {
 		const query = url.searchParams.get("q");
 		const results = query
 			? await this.store.search(query)
 			: await this.store.search("");
-		return jsonResponse(results);
+		jsonResponse(res, results);
 	}
-}
-
-function htmlResponse(): Response {
-	return new Response(renderHtml(), {
-		headers: { "Content-Type": "text/html" },
-	});
 }
