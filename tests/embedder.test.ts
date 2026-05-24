@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { MockEmbedder } from "../mock-embedder";
+import { MockEmbedder } from "../extensions/lib/mock-embedder";
 
 describe("MockEmbedder", () => {
 	it("returns vector of correct dimension", async () => {

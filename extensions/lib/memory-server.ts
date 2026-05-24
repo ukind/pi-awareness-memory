@@ -1,11 +1,11 @@
 import { VectorStore } from "./vector-store";
 import { UserProfile } from "./user-profile";
 import { renderHtml } from "./memory-html";
-import type { Embedding } from "./embedding";
 
 interface ServerConfig {
 	port: number;
-	memoryDbPath?: string;
+	store: VectorStore;
+	profile: UserProfile;
 }
 
 function jsonResponse(data: unknown): Response {
@@ -20,10 +20,10 @@ export class MemoryServer {
 	private server: ReturnType<typeof Bun.serve> | null = null;
 	private port: number;
 
-	constructor(config: ServerConfig, embedder: Embedding) {
+	constructor(config: ServerConfig) {
 		this.port = config.port;
-		this.store = new VectorStore(embedder);
-		this.profile = new UserProfile();
+		this.store = config.store;
+		this.profile = config.profile;
 	}
 
 	async start(): Promise<string> {

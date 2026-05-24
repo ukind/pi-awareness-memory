@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { VectorStore } from "../vector-store";
-import { MockEmbedder } from "../mock-embedder";
-import type { Embedding } from "../embedding";
+import { VectorStore } from "../extensions/lib/vector-store";
+import { MockEmbedder } from "../extensions/lib/mock-embedder";
+import type { Embedding } from "../extensions/lib/embedding";
 
 describe("VectorStore", () => {
 	let store: VectorStore;
@@ -53,5 +53,13 @@ describe("VectorStore", () => {
 	it("search returns empty for empty store", async () => {
 		const results = await store.search("anything");
 		expect(results).toEqual([]);
+	});
+
+	it("search with empty query returns all entries", async () => {
+		await store.put("user.os", "Windows 11", {});
+		await store.put("pref.editor", "vim", {});
+		const results = await store.search("");
+		expect(results.length).toBe(2);
+		expect(results.every((r) => r.score === 1.0)).toBe(true);
 	});
 });

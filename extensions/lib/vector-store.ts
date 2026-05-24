@@ -55,16 +55,16 @@ export class VectorStore {
 
 	async search(query: string, topK = 5): Promise<SearchResult[]> {
 		if (this.entries.size === 0) return [];
+		if (query.trim() === "") {
+			return Array.from(this.entries.values()).map((e) => ({
+				key: e.key, value: e.value, meta: e.meta, score: 1.0,
+			})).slice(0, topK);
+		}
 		const queryVec = await this.embedder.embed(query);
 		const scored: SearchResult[] = [];
 		for (const entry of this.entries.values()) {
 			const score = cosineSimilarity(queryVec, entry.vector);
-			scored.push({
-				key: entry.key,
-				value: entry.value,
-				meta: entry.meta,
-				score,
-			});
+			scored.push({ key: entry.key, value: entry.value, meta: entry.meta, score });
 		}
 		scored.sort((a, b) => b.score - a.score);
 		return scored.slice(0, topK);

@@ -15,7 +15,6 @@
  */
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
-import { Embedding } from "./lib/embedding";
 import { LocalEmbedder } from "./lib/local-embedder";
 import { VectorStore } from "./lib/vector-store";
 import { AutoCapture } from "./lib/auto-capture";
@@ -30,8 +29,8 @@ const profile = new UserProfile();
 let server: MemoryServer | null = null;
 
 async function startServer() {
-  server = new MemoryServer({ port: PORT }, embedder);
-  try { await server.start(); } catch { /* port in use */ }
+  server = new MemoryServer({ port: PORT, store, profile });
+  try { await server.start(); } catch (e) { console.error("[pi-awareness-memory] server start failed:", e); }
 }
 
 async function captureFacts(event: any) {
@@ -48,6 +47,13 @@ export default function enhancedMemory(pi: ExtensionAPI) {
   pi.on("message_end", async (event: any) => captureFacts(event));
   pi.registerCommand("memory-search", {
     description: "Search memories semantically",
-    handler: async (args: string, _ctx: ExtensionCommandContext) => { void store.search(args); },
+    handler: async (args: string, ctx: ExtensionCommandContext) => {
+      const results = await store.search(args);
+      const lines = results.map((r: any) => `${r.key}: ${r.value} (${(r.score * 100).toFixed(1)}%)`);
+      await ctx.pi.sendMessage({
+        display: lines.length ? lines.join("\n") : "No memories found.",
+        details: { results },
+      });
+    },
   });
 }

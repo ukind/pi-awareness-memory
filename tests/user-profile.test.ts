@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { UserProfile } from "../user-profile";
+import { UserProfile } from "../extensions/lib/user-profile";
 
 describe("UserProfile", () => {
 	it("builds profile from facts", () => {

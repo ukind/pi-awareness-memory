@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { MemoryDecay } from "../memory-decay";
-import type { DecayableEntry } from "../memory-decay";
+import { MemoryDecay } from "../extensions/lib/memory-decay";
+import type { DecayableEntry } from "../extensions/lib/memory-decay";
 
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { AutoCapture, type ExtractedFact } from "../auto-capture";
+import { AutoCapture, type ExtractedFact } from "../extensions/lib/auto-capture";
 
 describe("AutoCapture", () => {
 	it("extracts facts from conversation text", async () => {
