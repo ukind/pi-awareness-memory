@@ -1,0 +1,30 @@
+{
+  "name": "pi-awareness-memory",
+  "version": "0.1.0",
+  "description": "Pi agent memory enhancement — semantic search, auto-capture, decay, profile, web dashboard",
+  "type": "module",
+  "main": "extensions/enhanced-memory.ts",
+  "exports": {
+    ".": "./extensions/enhanced-memory.ts"
+  },
+  "files": [
+    "extensions/",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0"
+  },
+  "keywords": [
+    "pi",
+    "agent",
+    "memory",
+    "vector-search",
+    "embeddings",
+    "opencode-mem"
+  ],
+  "license": "MIT"
+}
