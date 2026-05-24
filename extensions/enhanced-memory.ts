@@ -2,7 +2,7 @@
  * pi-memory-enhanced — Pi agent memory enhancement extension.
  *
  * Features:
- * - Semantic vector search (MockEmbedder for fast startup, LocalEmbedder for production)
+ * - Semantic vector search (384-dim all-MiniLM-L6-v2 local embeddings)
  * - Auto-capture: extracts facts from conversation messages (pattern-based, no LLM calls)
  * - Memory decay: time-based scoring with reinforcement
  * - User profile: auto-built from dotted-key facts
@@ -16,14 +16,14 @@
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { Embedding } from "./lib/embedding";
-import { MockEmbedder } from "./lib/mock-embedder";
+import { LocalEmbedder } from "./lib/local-embedder";
 import { VectorStore } from "./lib/vector-store";
 import { AutoCapture } from "./lib/auto-capture";
 import { UserProfile } from "./lib/user-profile";
 import { MemoryServer } from "./lib/memory-server";
 
 const PORT = 4748;
-const embedder = new MockEmbedder();
+const embedder = new LocalEmbedder();
 const store = new VectorStore(embedder);
 const capture = new AutoCapture();
 const profile = new UserProfile();
