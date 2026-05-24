@@ -1,91 +1,24 @@
-export interface ExtractedFact {
-	key: string;
-	value: string;
-	confidence: number;
-	category: string;
-}
-
-interface ExistingKey {
-	key: string;
-	value: string;
-}
-
-const NOISE_PATTERNS = [
-	/^(ok|sure|yeah|yes|no|nope|yep|yup|lol|hmm|um|uh)[\s!.?]*$/i,
-	/^(let's|lets|okay|alright|got it|right|cool|nice|great|good)[\s!.?]*$/i,
-];
-
-const FACT_PATTERNS: Array<{
-	pattern: RegExp;
-	keyBuilder: (m: RegExpMatchArray) => string;
-	category: string;
-	confidence: number;
-}> = [
-	// Preferences: "I prefer/use/like/love X", "im prefer X", "i prefer X"
-	{
-		pattern: /(?:I|im|i)\s*(?:'m\s+|am\s+)?(?:prefer|use|like|love|prefer\s+to\s+use)\s+(.+?)(?:\.|,|!|$)/i,
-		keyBuilder: () => "pref",
-		category: "preference",
-		confidence: 0.85,
-	},
-	// OS: "My OS is X", "I run X", "running X"
-	{
-		pattern: /(?:my\s+OS\s+is|(?:I|im|i)\s*(?:'m\s+|am\s+)?run(?:ning)?)\s+(.+?)(?:\.|,|!|$)/i,
-		keyBuilder: () => "user.os",
-		category: "environment",
-		confidence: 0.9,
-	},
-	// Editor/Tool: "I use X for editing/coding/development"
-	{
-		pattern: /(?:use|prefer)\s+(\w+)\s+for\s+(?:edit|cod|develop)/i,
-		keyBuilder: () => "pref.editor",
-		category: "preference",
-		confidence: 0.85,
-	},
-	// Project: "This project uses X"
-	{
-		pattern: /(?:this\s+)?project\s+(?:uses|runs on|is built with)\s+(.+?)(?:\.|,|!|$)/i,
-		keyBuilder: () => "project",
-		category: "project",
-		confidence: 0.9,
-	},
-	// Name: "My name is X", "I'm X", "Call me X"
-	{
-		pattern: /(?:my\s+name\s+is|(?:I|im)\s*(?:'m\s*|am\s+)|call\s+me)\s+(\w+)/i,
-		keyBuilder: () => "user.name",
-		category: "identity",
-		confidence: 0.9,
-	},
-	// General: "X is Y"
-	{
-		pattern: /(\w[\w\s]*?)\s+is\s+([\w\s.]+?)(?:\.|,|!|$)/i,
-		keyBuilder: (m) => m[1].trim().replace(/\s+/g, ".").toLowerCase(),
-		category: "fact",
-		confidence: 0.7,
-	},
-];
+const NOISE = /^(ok|sure|yeah|yes|no|nope|yep|yup|lol|hmm|um|uh|let's|lets|okay|alright|got it|right|cool|nice|great|good)[\s!.?]*$/i;
 
 export class AutoCapture {
-	async extract(
-		text: string,
-		existing: ExistingKey[] = [],
-	): Promise<ExtractedFact[]> {
-		const trimmed = text.trim();
-		if (!trimmed || this.isNoise(trimmed)) return [];
-		const existingKeys = new Set(existing.map((e) => e.key));
-		const facts: ExtractedFact[] = [];
-		for (const { pattern, keyBuilder, category, confidence } of FACT_PATTERNS) {
-			const match = trimmed.match(pattern);
-			if (!match) continue;
-			const key = keyBuilder(match);
-			if (existingKeys.has(key)) continue;
-			if (facts.some((f) => f.key === key)) continue;
-			facts.push({ key, value: trimmed, confidence, category });
-		}
-		return facts;
+	private counter = 0;
+
+	shouldCapture(text: string): boolean {
+		const t = text.trim();
+		return t.length >= 20 && !NOISE.test(t);
 	}
 
-	private isNoise(text: string): boolean {
-		return NOISE_PATTERNS.some((p) => p.test(text));
+	makeKey(text: string): string {
+		this.counter++;
+		const hash = this.simpleHash(text);
+		return `msg:${hash}:${this.counter}`;
+	}
+
+	private simpleHash(s: string): string {
+		let h = 0;
+		for (let i = 0; i < s.length; i++) {
+			h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+		}
+		return (h >>> 0).toString(36);
 	}
 }
