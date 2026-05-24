@@ -21,45 +21,44 @@ const FACT_PATTERNS: Array<{
 	category: string;
 	confidence: number;
 }> = [
-	// Preferences: "I prefer X", "I use X", "I like X"
+	// Preferences: "I prefer/use/like/love X", "im prefer X", "i prefer X"
 	{
-		pattern: /I\s+(?:prefer|use|like|love)\s+(.+?)(?:\.|,|$)/i,
+		pattern: /(?:I|im|i)\s*(?:'m\s+|am\s+)?(?:prefer|use|like|love|prefer\s+to\s+use)\s+(.+?)(?:\.|,|!|$)/i,
 		keyBuilder: () => "pref",
 		category: "preference",
 		confidence: 0.85,
 	},
-	// OS: "My OS is X", "I run X"
+	// OS: "My OS is X", "I run X", "running X"
 	{
-		pattern: /(?:my\s+OS\s+is|I\s+run|running)\s+(.+?)(?:\.|,|$)/i,
+		pattern: /(?:my\s+OS\s+is|(?:I|im|i)\s*(?:'m\s+|am\s+)?run(?:ning)?)\s+(.+?)(?:\.|,|!|$)/i,
 		keyBuilder: () => "user.os",
 		category: "environment",
 		confidence: 0.9,
 	},
-	// Editor: "I use X for editing"
+	// Editor/Tool: "I use X for editing/coding/development"
 	{
-		pattern: /(?:use|prefer)\s+(\w+)\s+for\s+edit/i,
+		pattern: /(?:use|prefer)\s+(\w+)\s+for\s+(?:edit|cod|develop)/i,
 		keyBuilder: () => "pref.editor",
 		category: "preference",
 		confidence: 0.85,
 	},
 	// Project: "This project uses X"
 	{
-		pattern:
-			/(?:this\s+)?project\s+(?:uses|runs on|is built with)\s+(.+?)(?:\.|,|$)/i,
+		pattern: /(?:this\s+)?project\s+(?:uses|runs on|is built with)\s+(.+?)(?:\.|,|!|$)/i,
 		keyBuilder: () => "project",
 		category: "project",
 		confidence: 0.9,
 	},
-	// Name: "My name is X", "I am X", "Call me X"
+	// Name: "My name is X", "I'm X", "Call me X"
 	{
-		pattern: /(?:my\s+name\s+is|I\s+am|call\s+me)\s+(\w+)/i,
+		pattern: /(?:my\s+name\s+is|(?:I|im)\s*(?:'m\s*|am\s+)|call\s+me)\s+(\w+)/i,
 		keyBuilder: () => "user.name",
 		category: "identity",
 		confidence: 0.9,
 	},
 	// General: "X is Y"
 	{
-		pattern: /(\w[\w\s]*?)\s+is\s+([\w\s.]+?)(?:\.|,|$)/i,
+		pattern: /(\w[\w\s]*?)\s+is\s+([\w\s.]+?)(?:\.|,|!|$)/i,
 		keyBuilder: (m) => m[1].trim().replace(/\s+/g, ".").toLowerCase(),
 		category: "fact",
 		confidence: 0.7,
