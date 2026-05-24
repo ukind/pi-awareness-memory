@@ -18,6 +18,9 @@ const profile = new UserProfile();
 let server: MemoryServer | null = null;
 
 async function startServer() {
+	const memCount = store.loadFromDisk();
+	const profCount = profile.loadFromDisk();
+	console.log(`[pi-awareness-memory] loaded ${memCount} memories, ${profCount} profile facts from disk`);
 	server = new MemoryServer({ port: PORT, store, profile });
 	try {
 		await server.start();

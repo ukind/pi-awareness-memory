@@ -1,4 +1,5 @@
 import type { Embedding } from "./embedding";
+import { loadFromDisk, saveToDisk, STORE_PATH } from "./persistence";
 
 interface MemoryEntry {
 	key: string;
@@ -16,6 +17,10 @@ interface SearchResult {
 	score: number;
 }
 
+interface SerializedStore {
+	entries: MemoryEntry[];
+}
+
 export class VectorStore {
 	private entries = new Map<string, MemoryEntry>();
 	private embedder: Embedding;
@@ -24,33 +29,43 @@ export class VectorStore {
 		this.embedder = embedder;
 	}
 
-	async put(
-		key: string,
-		value: string,
-		meta: Record<string, string>,
-	): Promise<void> {
+	loadFromDisk(): number {
+		const data = loadFromDisk<SerializedStore>(STORE_PATH);
+		if (!data?.entries) return 0;
+		this.entries.clear();
+		for (const entry of data.entries) {
+			this.entries.set(entry.key, entry);
+		}
+		return this.entries.size;
+	}
+
+	saveToDisk(): void {
+		const data: SerializedStore = {
+			entries: Array.from(this.entries.values()),
+		};
+		saveToDisk(STORE_PATH, data);
+	}
+
+	async put(key: string, value: string, meta: Record<string, string>): Promise<void> {
 		const vector = await this.embedder.embed(value);
 		const now = new Date().toISOString();
 		const existing = this.entries.get(key);
 		this.entries.set(key, {
-			key,
-			value,
-			meta,
-			vector,
+			key, value, meta, vector,
 			createdAt: existing?.createdAt ?? now,
 			updatedAt: now,
 		});
+		this.saveToDisk();
 	}
 
-	async get(
-		key: string,
-	): Promise<{ value: string; meta: Record<string, string> } | null> {
+	async get(key: string): Promise<{ value: string; meta: Record<string, string> } | null> {
 		const entry = this.entries.get(key);
 		return entry ? { value: entry.value, meta: entry.meta } : null;
 	}
 
 	async delete(key: string): Promise<void> {
 		this.entries.delete(key);
+		this.saveToDisk();
 	}
 
 	async search(query: string, topK = 5): Promise<SearchResult[]> {
@@ -72,9 +87,7 @@ export class VectorStore {
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
-	let dot = 0,
-		magA = 0,
-		magB = 0;
+	let dot = 0, magA = 0, magB = 0;
 	for (let i = 0; i < a.length; i++) {
 		dot += a[i] * b[i];
 		magA += a[i] * a[i];

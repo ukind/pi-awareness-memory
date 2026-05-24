@@ -1,3 +1,5 @@
+import { loadFromDisk, saveToDisk, PROFILE_PATH } from "./persistence";
+
 interface ProfileData {
 	name?: string;
 	os?: string;
@@ -6,11 +8,33 @@ interface ProfileData {
 	project: Record<string, string>;
 }
 
+interface SerializedProfile {
+	facts: Record<string, string>;
+}
+
 export class UserProfile {
 	private facts = new Map<string, string>();
 
 	addFact(key: string, value: string): void {
 		this.facts.set(key, value);
+		this.saveToDisk();
+	}
+
+	loadFromDisk(): number {
+		const data = loadFromDisk<SerializedProfile>(PROFILE_PATH);
+		if (!data?.facts) return 0;
+		this.facts.clear();
+		for (const [k, v] of Object.entries(data.facts)) {
+			this.facts.set(k, v);
+		}
+		return this.facts.size;
+	}
+
+	private saveToDisk(): void {
+		const data: SerializedProfile = {
+			facts: Object.fromEntries(this.facts),
+		};
+		saveToDisk(PROFILE_PATH, data);
 	}
 
 	build(): ProfileData {
