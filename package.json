@@ -1,11 +1,16 @@
 {
   "name": "pi-awareness-memory",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Pi agent memory enhancement — semantic search, auto-capture, decay, profile, web dashboard",
   "type": "module",
   "main": "extensions/enhanced-memory.ts",
   "exports": {
     ".": "./extensions/enhanced-memory.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/enhanced-memory.ts"
+    ]
   },
   "files": [
     "extensions/",
