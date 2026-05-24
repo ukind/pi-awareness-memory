@@ -16,6 +16,7 @@
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { LocalEmbedder } from "./lib/local-embedder";
+import { MockEmbedder } from "./lib/mock-embedder";
 import { VectorStore } from "./lib/vector-store";
 import { AutoCapture } from "./lib/auto-capture";
 import { UserProfile } from "./lib/user-profile";
@@ -34,11 +35,27 @@ async function startServer() {
 }
 
 async function captureFacts(event: any) {
-  const text = event.message?.content ?? "";
-  if (typeof text !== "string" || text.length < 10) return;
-  for (const f of await capture.extract(text)) {
-    await store.put(f.key, f.value, { category: f.category });
-    profile.addFact(f.key, f.value);
+  const msg = event.message ?? event;
+  let text: string;
+  if (typeof msg === "string") {
+    text = msg;
+  } else if (msg?.content) {
+    text = Array.isArray(msg.content)
+      ? msg.content.filter((c: any) => typeof c === "string" || c?.type === "text").map((c: any) => typeof c === "string" ? c : c.text ?? "").join(" ")
+      : String(msg.content);
+  } else {
+    return;
+  }
+  if (!text || text.length < 5) return;
+  console.log("[pi-awareness-memory] capturing:", text.slice(0, 80));
+  try {
+    for (const f of await capture.extract(text)) {
+      await store.put(f.key, f.value, { category: f.category });
+      profile.addFact(f.key, f.value);
+      console.log("[pi-awareness-memory] captured:", f.key, "=", f.value.slice(0, 40));
+    }
+  } catch (e: any) {
+    console.error("[pi-awareness-memory] capture error:", e?.message ?? e);
   }
 }
 
