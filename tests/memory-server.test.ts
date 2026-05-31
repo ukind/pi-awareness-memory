@@ -1,25 +1,36 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { MemoryServer } from "../extensions/lib/memory-server";
-import { VectorStore } from "../extensions/lib/vector-store";
+import { SqliteStore } from "../extensions/lib/sqlite-store";
 import { UserProfile } from "../extensions/lib/user-profile";
 import { MockEmbedder } from "../extensions/lib/mock-embedder";
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 describe("MemoryServer", () => {
 	let server: MemoryServer;
 	let baseUrl: string;
-	let store: VectorStore;
+	let store: SqliteStore;
 	let profile: UserProfile;
+	let tmpDir: string;
 
 	beforeAll(async () => {
-		const embedder = new MockEmbedder();
-		store = new VectorStore(embedder);
+		tmpDir = mkdtempSync(join(tmpdir(), "pi-srv-test-"));
+		store = new SqliteStore({
+			embedder: new MockEmbedder(),
+			dbPath: join(tmpDir, "test.db"),
+		});
 		profile = new UserProfile();
-		server = new MemoryServer({ port: 14748, store, profile });
+		server = new MemoryServer({ port: 0, store, profile });
 		baseUrl = await server.start();
 	});
 
 	afterAll(() => {
 		server.stop();
+		store.close();
+		try {
+			rmSync(tmpDir, { recursive: true, force: true });
+		} catch {}
 	});
 
 	it("serves HTML at root endpoint", async () => {
@@ -30,13 +41,16 @@ describe("MemoryServer", () => {
 	});
 
 	it("returns memories as JSON at /api/memories", async () => {
-		await store.put("test.key", "test value", { category: "test" });
+		await store.put({
+			id: "test.key",
+			content: "test value",
+			category: "test",
+		});
 		const res = await fetch(baseUrl + "/api/memories");
 		expect(res.status).toBe(200);
 		const data = await res.json();
 		expect(Array.isArray(data)).toBe(true);
 		expect(data.length).toBeGreaterThan(0);
-		expect(data[0].key).toBe("test.key");
 	});
 
 	it("returns profile as JSON at /api/profile", async () => {

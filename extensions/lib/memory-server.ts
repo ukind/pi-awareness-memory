@@ -1,25 +1,22 @@
 import http from "node:http";
-import { VectorStore } from "./vector-store";
-import { UserProfile } from "./user-profile";
+import type { SqliteStore } from "./sqlite-store";
+import type { UserProfile } from "./user-profile";
 import { renderHtml } from "./memory-html";
 
 interface ServerConfig {
 	port: number;
-	store: VectorStore;
+	store: SqliteStore;
 	profile: UserProfile;
 }
 
-function jsonResponse(
-	res: http.ServerResponse,
-	data: unknown,
-): void {
+function jsonResponse(res: http.ServerResponse, data: unknown): void {
 	const body = JSON.stringify(data);
 	res.writeHead(200, { "Content-Type": "application/json" });
 	res.end(body);
 }
 
 export class MemoryServer {
-	private store: VectorStore;
+	private store: SqliteStore;
 	private profile: UserProfile;
 	private server: http.Server | null = null;
 	private port: number;
@@ -31,12 +28,15 @@ export class MemoryServer {
 	}
 
 	async start(): Promise<string> {
-		const baseUrl = `http://localhost:${this.port}`;
-		this.server = http.createServer((req, res) =>
-			this.handleRequest(req, res),
-		);
+		this.server = http.createServer((req, res) => this.handleRequest(req, res));
 		return new Promise((resolve, reject) => {
-			this.server!.listen(this.port, () => resolve(baseUrl));
+			this.server!.listen(this.port, () => {
+				const addr = this.server!.address();
+				const actualPort =
+					typeof addr === "object" && addr ? addr.port : this.port;
+				this.port = actualPort;
+				resolve(`http://localhost:${actualPort}`);
+			});
 			this.server!.on("error", reject);
 		});
 	}
@@ -71,8 +71,8 @@ export class MemoryServer {
 	): Promise<void> {
 		const query = url.searchParams.get("q");
 		const results = query
-			? await this.store.search(query)
-			: await this.store.search("");
+			? await this.store.search({ query })
+			: await this.store.list({ limit: 50 });
 		jsonResponse(res, results);
 	}
 }

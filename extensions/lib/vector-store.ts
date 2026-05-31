@@ -1,5 +1,6 @@
 import type { Embedding } from "./embedding";
 import { loadFromDisk, saveToDisk, STORE_PATH } from "./persistence";
+import { BackendFactory } from "./vector-backends";
 
 interface MemoryEntry {
 	key: string;
@@ -24,9 +25,11 @@ interface SerializedStore {
 export class VectorStore {
 	private entries = new Map<string, MemoryEntry>();
 	private embedder: Embedding;
+	private backend: BackendFactory;
 
 	constructor(embedder: Embedding) {
 		this.embedder = embedder;
+		this.backend = new BackendFactory();
 	}
 
 	loadFromDisk(): number {
@@ -46,19 +49,28 @@ export class VectorStore {
 		saveToDisk(STORE_PATH, data);
 	}
 
-	async put(key: string, value: string, meta: Record<string, string>): Promise<void> {
+	async put(
+		key: string,
+		value: string,
+		meta: Record<string, string>,
+	): Promise<void> {
 		const vector = await this.embedder.embed(value);
 		const now = new Date().toISOString();
 		const existing = this.entries.get(key);
 		this.entries.set(key, {
-			key, value, meta, vector,
+			key,
+			value,
+			meta,
+			vector,
 			createdAt: existing?.createdAt ?? now,
 			updatedAt: now,
 		});
 		this.saveToDisk();
 	}
 
-	async get(key: string): Promise<{ value: string; meta: Record<string, string> } | null> {
+	async get(
+		key: string,
+	): Promise<{ value: string; meta: Record<string, string> } | null> {
 		const entry = this.entries.get(key);
 		return entry ? { value: entry.value, meta: entry.meta } : null;
 	}
@@ -71,28 +83,27 @@ export class VectorStore {
 	async search(query: string, topK = 5): Promise<SearchResult[]> {
 		if (this.entries.size === 0) return [];
 		if (query.trim() === "") {
-			return Array.from(this.entries.values()).map((e) => ({
-				key: e.key, value: e.value, meta: e.meta, score: 1.0,
-			})).slice(0, topK);
+			return Array.from(this.entries.values())
+				.map((e) => ({
+					key: e.key,
+					value: e.value,
+					meta: e.meta,
+					score: 1.0,
+				}))
+				.slice(0, topK);
 		}
 		const queryVec = await this.embedder.embed(query);
-		const scored: SearchResult[] = [];
-		for (const entry of this.entries.values()) {
-			const score = cosineSimilarity(queryVec, entry.vector);
-			scored.push({ key: entry.key, value: entry.value, meta: entry.meta, score });
-		}
-		scored.sort((a, b) => b.score - a.score);
-		return scored.slice(0, topK);
+		const vectors = Array.from(this.entries.values()).map((e) => e.vector);
+		const results = await this.backend.search(queryVec, vectors, topK);
+		const entryArray = Array.from(this.entries.values());
+		return results.map((r) => {
+			const entry = entryArray[parseInt(r.key)];
+			return {
+				key: entry.key,
+				value: entry.value,
+				meta: entry.meta,
+				score: r.score,
+			};
+		});
 	}
-}
-
-function cosineSimilarity(a: number[], b: number[]): number {
-	let dot = 0, magA = 0, magB = 0;
-	for (let i = 0; i < a.length; i++) {
-		dot += a[i] * b[i];
-		magA += a[i] * a[i];
-		magB += b[i] * b[i];
-	}
-	const denom = Math.sqrt(magA) * Math.sqrt(magB);
-	return denom === 0 ? 0 : dot / denom;
 }

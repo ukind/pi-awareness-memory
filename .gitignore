@@ -4,3 +4,11 @@ dist/
 *.db-shm
 *.db-wal
 .DS_Store
+.think-sessions/
+.think/
+# Local Pi runtime state
+.atl/
+.pi/
+.think
+.pi-lens/
+openspec/
