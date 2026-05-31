@@ -14,6 +14,10 @@ Memory enhancement for [Pi coding agent](https://github.com/mariozechner/pi-codi
 | **User Profile** | Auto-built from captured facts (`user.os`, `pref.editor`, `project.*`) |
 | **Web Dashboard** | Browse, search, and manage memories at http://localhost:4748 |
 
+## Requirements
+
+- **Node.js 24+** (uses built-in `node:sqlite` module, available from Node.js v24)
+
 ## Installation
 
 ### Option 1: npm package (recommended)
@@ -75,7 +79,7 @@ Pi Extension API
 VectorStore (in-memory, cosine similarity)
     └── LocalEmbedder (384-dim all-MiniLM-L6-v2 via WASM)
 
-MemoryServer (Bun.serve)
+MemoryServer (node:http)
     ├── GET /           →  HTML dashboard
     ├── GET /api/memories?q=  →  Semantic search results
     └── GET /api/profile      →  Auto-built user profile
@@ -111,8 +115,8 @@ reinforcement = log(1 + accessCount) / log(2)
 ## Development
 
 ```bash
-bun install
-bun test
+npm install
+npm test
 ```
 
 29 tests, all passing.

@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import { DatabaseSync } from "node:sqlite";
 
 export interface ConnectionOptions {
 	path: string;
@@ -6,16 +6,16 @@ export interface ConnectionOptions {
 }
 
 export class ConnectionManager {
-	public db: Database;
+	public db: DatabaseSync;
 	private retryMax = 3;
 	private baseDelayMs = 100;
 
 	constructor(opts: ConnectionOptions) {
-		this.db = new Database(opts.path, { create: opts.create ?? true });
+		this.db = new DatabaseSync(opts.path);
 	}
 
 	run(sql: string, ...params: any[]) {
-		return this.retry(() => this.db.run(sql, ...params));
+		return this.retry(() => this.db.prepare(sql).run(...params));
 	}
 
 	prepare(sql: string) {
@@ -27,7 +27,18 @@ export class ConnectionManager {
 	}
 
 	transaction(fn: () => void) {
-		return this.db.transaction(fn);
+		return () => {
+			this.db.exec("BEGIN");
+			try {
+				fn();
+				this.db.exec("COMMIT");
+			} catch (e) {
+				try {
+					this.db.exec("ROLLBACK");
+				} catch {}
+				throw e;
+			}
+		};
 	}
 
 	private retry<T>(fn: () => T): T {
@@ -35,9 +46,9 @@ export class ConnectionManager {
 			try {
 				return fn();
 			} catch (e: any) {
-				if (e?.code === "SQLITE_BUSY" && attempt < this.retryMax) {
+				if (e?.errcode === 5 && attempt < this.retryMax) {
 					const delay = this.baseDelayMs * 2 ** (attempt - 1);
-					Bun.sleepSync(delay);
+					Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay);
 					continue;
 				}
 				throw e;
@@ -52,8 +63,8 @@ export class ConnectionManager {
 			const pages = this.db
 				.prepare("SELECT * FROM pragma_wal_checkpoint")
 				.get() as any;
-			if (pages?.wal_size && pages.wal_size > walPageThreshold) {
-				this.db.run("PRAGMA wal_checkpoint(TRUNCATE)");
+			if (pages?.log && pages.log > walPageThreshold) {
+				this.db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").run();
 			}
 		} catch {
 			// checkpoint is advisory
